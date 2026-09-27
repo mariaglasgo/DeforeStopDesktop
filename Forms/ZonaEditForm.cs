@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop.Forms
@@ -10,6 +11,7 @@ namespace DeforeStopDesktop.Forms
     {
         private Zona? _zona;
         private bool _esNuevo;
+        private readonly ZonaController _controller = new ZonaController();
         private System.ComponentModel.IContainer? components = null;
 
         public ZonaEditForm(Zona? zona)
@@ -58,7 +60,6 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(lblTitulo);
 
-            // Nombre
             Label lblNombre = new Label
             {
                 Text = "Nombre de la zona:",
@@ -78,7 +79,6 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(txtNombre);
 
-            // Departamento
             Label lblDepto = new Label
             {
                 Text = "Departamento:",
@@ -100,12 +100,11 @@ namespace DeforeStopDesktop.Forms
                 "Jinotega", "Río San Juan", "Estelí", "Granada", "Matagalpa",
                 "Nueva Segovia", "Madriz", "Chinandega", "León", "Managua",
                 "Masaya", "Carazo", "Rivas", "Boaco", "Chontales",
-                "Río San Juan", "Costa Caribe Norte", "Costa Caribe Sur"
+                "Costa Caribe Norte", "Costa Caribe Sur"
             });
             cmbDepto.Text = _zona?.Departamento ?? "";
             this.Controls.Add(cmbDepto);
 
-            // Latitud
             Label lblLat = new Label
             {
                 Text = "Latitud (opcional):",
@@ -126,7 +125,6 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(txtLat);
 
-            // Longitud
             Label lblLon = new Label
             {
                 Text = "Longitud (opcional):",
@@ -147,7 +145,6 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(txtLon);
 
-            // Botón Guardar
             Button btnGuardar = new Button
             {
                 Text = "💾 GUARDAR",
@@ -172,39 +169,42 @@ namespace DeforeStopDesktop.Forms
 
                 try
                 {
-                    using (var db = new AppDbContext())
-                    {
-                        decimal? lat = null, lon = null;
-                        if (decimal.TryParse(txtLat.Text, out decimal l)) lat = l;
-                        if (decimal.TryParse(txtLon.Text, out decimal lo)) lon = lo;
+                    decimal? lat = null, lon = null;
+                    if (decimal.TryParse(txtLat.Text, out decimal l)) lat = l;
+                    if (decimal.TryParse(txtLon.Text, out decimal lo)) lon = lo;
 
-                        if (_esNuevo)
+                    bool resultado;
+
+                    if (_esNuevo)
+                    {
+                        var nueva = new Zona
                         {
-                            var nueva = new Zona
-                            {
-                                Nombre = txtNombre.Text,
-                                Departamento = cmbDepto.Text,
-                                Latitud = lat,
-                                Longitud = lon
-                            };
-                            db.Zonas.Add(nueva);
-                        }
-                        else
-                        {
-                            var z = db.Zonas.Find(_zona!.Id);
-                            if (z != null)
-                            {
-                                z.Nombre = txtNombre.Text;
-                                z.Departamento = cmbDepto.Text;
-                                z.Latitud = lat;
-                                z.Longitud = lon;
-                            }
-                        }
-                        db.SaveChanges();
+                            Nombre = txtNombre.Text,
+                            Departamento = cmbDepto.Text,
+                            Latitud = lat,
+                            Longitud = lon
+                        };
+                        resultado = _controller.Crear(nueva);
+                    }
+                    else
+                    {
+                        _zona!.Nombre = txtNombre.Text;
+                        _zona.Departamento = cmbDepto.Text;
+                        _zona.Latitud = lat;
+                        _zona.Longitud = lon;
+                        resultado = _controller.Actualizar(_zona);
                     }
 
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    if (resultado)
+                    {
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Error al guardar la zona.", "Error",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -214,7 +214,6 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(btnGuardar);
 
-            // Botón Cancelar
             Button btnCancelar = new Button
             {
                 Text = "❌ CANCELAR",

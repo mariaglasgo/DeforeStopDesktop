@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop.Forms
@@ -13,6 +13,9 @@ namespace DeforeStopDesktop.Forms
         private ImagenSatelital? _imagen;
         private bool _esNuevo;
         private string? _rutaSeleccionada;
+        private readonly ImagenSatelitalController _controller = new ImagenSatelitalController();
+        private readonly ZonaController _zonaController = new ZonaController();
+        private readonly UsuarioController _usuarioController = new UsuarioController();
         private System.ComponentModel.IContainer? components = null;
 
         public ImagenEditForm(ImagenSatelital? imagen)
@@ -28,7 +31,7 @@ namespace DeforeStopDesktop.Forms
         {
             this.components = new System.ComponentModel.Container();
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(600, 650);
+            this.ClientSize = new System.Drawing.Size(600, 750);
             this.Name = "ImagenEditForm";
             this.Text = "Imagen";
         }
@@ -215,26 +218,23 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(cmbUsuario);
 
-            // Cargar datos
+            // Cargar ComboBox usando Controllers
             try
             {
-                using (var db = new AppDbContext())
+                var zonas = _zonaController.ObtenerTodas();
+                cmbZona.DataSource = zonas;
+                cmbZona.DisplayMember = "Nombre";
+                cmbZona.ValueMember = "Id";
+
+                var usuarios = _usuarioController.ObtenerTodos();
+                cmbUsuario.DataSource = usuarios;
+                cmbUsuario.DisplayMember = "Nombre";
+                cmbUsuario.ValueMember = "Id";
+
+                if (_imagen != null)
                 {
-                    var zonas = db.Zonas.ToList();
-                    cmbZona.DataSource = zonas;
-                    cmbZona.DisplayMember = "Nombre";
-                    cmbZona.ValueMember = "Id";
-
-                    var usuarios = db.Usuarios.ToList();
-                    cmbUsuario.DataSource = usuarios;
-                    cmbUsuario.DisplayMember = "Nombre";
-                    cmbUsuario.ValueMember = "Id";
-
-                    if (_imagen != null)
-                    {
-                        cmbZona.SelectedValue = _imagen.ZonaId;
-                        cmbUsuario.SelectedValue = _imagen.UsuarioId;
-                    }
+                    cmbZona.SelectedValue = _imagen.ZonaId;
+                    cmbUsuario.SelectedValue = _imagen.UsuarioId;
                 }
             }
             catch { }
@@ -264,54 +264,43 @@ namespace DeforeStopDesktop.Forms
 
                 try
                 {
-                    // Copiar imagen a carpeta uploads del ejecutable
-                    string carpetaUploads = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "uploads");
-                    if (!Directory.Exists(carpetaUploads))
-                        Directory.CreateDirectory(carpetaUploads);
+                    // Copiar archivo a carpeta uploads local
+                    string rutaDestino = _controller.CopiarArchivoALocal(_rutaSeleccionada);
 
-                    string rutaDestino = _rutaSeleccionada;
+                    bool resultado;
 
-                    // Solo copiar si no está ya en uploads
-                    if (!_rutaSeleccionada.StartsWith(carpetaUploads))
+                    if (_esNuevo)
                     {
-                        string extension = Path.GetExtension(_rutaSeleccionada);
-                        string nombreUnico = Guid.NewGuid().ToString() + extension;
-                        rutaDestino = Path.Combine(carpetaUploads, nombreUnico);
-                        File.Copy(_rutaSeleccionada, rutaDestino, true);
+                        var nueva = new ImagenSatelital
+                        {
+                            NombreArchivo = txtNombre.Text,
+                            RutaArchivo = rutaDestino,
+                            FechaCaptura = dtpFecha.Value,
+                            ZonaId = cmbZona.SelectedValue != null ? (int)cmbZona.SelectedValue : 1,
+                            UsuarioId = cmbUsuario.SelectedValue != null ? (int)cmbUsuario.SelectedValue : 1
+                        };
+                        resultado = _controller.Crear(nueva);
+                    }
+                    else
+                    {
+                        _imagen!.NombreArchivo = txtNombre.Text;
+                        _imagen.RutaArchivo = rutaDestino;
+                        _imagen.FechaCaptura = dtpFecha.Value;
+                        _imagen.ZonaId = cmbZona.SelectedValue != null ? (int)cmbZona.SelectedValue : 1;
+                        _imagen.UsuarioId = cmbUsuario.SelectedValue != null ? (int)cmbUsuario.SelectedValue : 1;
+                        resultado = _controller.Actualizar(_imagen);
                     }
 
-                    using (var db = new AppDbContext())
+                    if (resultado)
                     {
-                        if (_esNuevo)
-                        {
-                            var nueva = new ImagenSatelital
-                            {
-                                NombreArchivo = txtNombre.Text,
-                                RutaArchivo = rutaDestino,
-                                FechaCaptura = dtpFecha.Value,
-                                ZonaId = cmbZona.SelectedValue != null ? (int)cmbZona.SelectedValue : 1,
-                                UsuarioId = cmbUsuario.SelectedValue != null ? (int)cmbUsuario.SelectedValue : 1,
-                                FechaSubida = DateTime.Now
-                            };
-                            db.ImagenesSatelitales.Add(nueva);
-                        }
-                        else
-                        {
-                            var im = db.ImagenesSatelitales.Find(_imagen!.Id);
-                            if (im != null)
-                            {
-                                im.NombreArchivo = txtNombre.Text;
-                                im.RutaArchivo = rutaDestino;
-                                im.FechaCaptura = dtpFecha.Value;
-                                im.ZonaId = cmbZona.SelectedValue != null ? (int)cmbZona.SelectedValue : 1;
-                                im.UsuarioId = cmbUsuario.SelectedValue != null ? (int)cmbUsuario.SelectedValue : 1;
-                            }
-                        }
-                        db.SaveChanges();
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
                     }
-
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    else
+                    {
+                        MessageBox.Show("Error al guardar la imagen.", "Error",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 catch (Exception ex)
                 {

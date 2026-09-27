@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop.Forms
@@ -11,6 +11,7 @@ namespace DeforeStopDesktop.Forms
     {
         private DataGridView? dgvUsuarios;
         private System.ComponentModel.IContainer? components = null;
+        private readonly UsuarioController _controller = new UsuarioController();
 
         public UsuariosForm()
         {
@@ -44,6 +45,7 @@ namespace DeforeStopDesktop.Forms
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Colores.FondoClaro;
 
+            // Navbar
             Panel navbar = new Panel
             {
                 Dock = DockStyle.Top,
@@ -63,6 +65,7 @@ namespace DeforeStopDesktop.Forms
             navbar.Controls.Add(lblTitulo);
             this.Controls.Add(navbar);
 
+            // Botones
             Panel panelBotones = new Panel
             {
                 Dock = DockStyle.Top,
@@ -118,6 +121,7 @@ namespace DeforeStopDesktop.Forms
 
             this.Controls.Add(panelBotones);
 
+            // DataGridView
             dgvUsuarios = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -153,18 +157,15 @@ namespace DeforeStopDesktop.Forms
         {
             try
             {
-                using (var db = new AppDbContext())
-                {
-                    var usuarios = db.Usuarios.OrderBy(u => u.Id).ToList();
-                    dgvUsuarios!.DataSource = usuarios;
-                    dgvUsuarios.Columns["Id"]!.HeaderText = "ID";
-                    dgvUsuarios.Columns["Nombre"]!.HeaderText = "Nombre";
-                    dgvUsuarios.Columns["Correo"]!.HeaderText = "Correo";
-                    dgvUsuarios.Columns["Contrasena"]!.Visible = false;
-                    dgvUsuarios.Columns["Rol"]!.HeaderText = "Rol";
-                    dgvUsuarios.Columns["Activo"]!.HeaderText = "Activo";
-                    dgvUsuarios.Columns["FechaCreacion"]!.HeaderText = "Fecha Creación";
-                }
+                var usuarios = _controller.ObtenerTodos();
+                dgvUsuarios!.DataSource = usuarios;
+                dgvUsuarios.Columns["Id"]!.HeaderText = "ID";
+                dgvUsuarios.Columns["Nombre"]!.HeaderText = "Nombre";
+                dgvUsuarios.Columns["Correo"]!.HeaderText = "Correo";
+                dgvUsuarios.Columns["Contrasena"]!.Visible = false;
+                dgvUsuarios.Columns["Rol"]!.HeaderText = "Rol";
+                dgvUsuarios.Columns["Activo"]!.HeaderText = "Activo";
+                dgvUsuarios.Columns["FechaCreacion"]!.HeaderText = "Fecha Creación";
             }
             catch (Exception ex)
             {
@@ -192,11 +193,8 @@ namespace DeforeStopDesktop.Forms
             }
 
             int id = (int)dgvUsuarios.SelectedRows[0].Cells["Id"].Value;
-            using (var db = new AppDbContext())
-            {
-                var usuario = db.Usuarios.Find(id);
-                if (usuario != null) AbrirEditor(usuario);
-            }
+            var usuario = _controller.ObtenerPorId(id);
+            if (usuario != null) AbrirEditor(usuario);
         }
 
         private void EliminarSeleccionado()
@@ -214,24 +212,15 @@ namespace DeforeStopDesktop.Forms
             if (MessageBox.Show($"¿Eliminar al usuario \"{nombre}\"?", "Confirmar",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                try
+                if (_controller.Eliminar(id))
                 {
-                    using (var db = new AppDbContext())
-                    {
-                        var usuario = db.Usuarios.Find(id);
-                        if (usuario != null)
-                        {
-                            db.Usuarios.Remove(usuario);
-                            db.SaveChanges();
-                        }
-                    }
                     CargarUsuarios();
                     MessageBox.Show("Usuario eliminado correctamente.", "Éxito",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show("Error al eliminar: " + ex.Message, "Error",
+                    MessageBox.Show("Error al eliminar usuario.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }

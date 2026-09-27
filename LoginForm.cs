@@ -4,12 +4,15 @@ using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop
 {
     public partial class LoginForm : Form
     {
+        private readonly UsuarioController _controller = new UsuarioController();
+
         public LoginForm()
         {
             InitializeComponent();
@@ -24,6 +27,7 @@ namespace DeforeStopDesktop
             this.FormBorderStyle = FormBorderStyle.None;
             this.BackColor = Colores.FondoClaro;
 
+            // Panel izquierdo (verde con logo)
             Panel panelIzq = new Panel
             {
                 Dock = DockStyle.Left,
@@ -39,6 +43,7 @@ namespace DeforeStopDesktop
                 }
             };
 
+            // Logo pájaro
             PictureBox picLogo = new PictureBox
             {
                 Image = Image.FromFile("pajaro.png"),
@@ -49,6 +54,7 @@ namespace DeforeStopDesktop
             };
             panelIzq.Controls.Add(picLogo);
 
+            // Título
             Label lblTitulo = new Label
             {
                 Text = "DeforeStop",
@@ -61,6 +67,7 @@ namespace DeforeStopDesktop
             };
             panelIzq.Controls.Add(lblTitulo);
 
+            // Subtítulo
             Label lblSub = new Label
             {
                 Text = "Monitoreo Satelital de\nDeforestación en Nicaragua",
@@ -73,6 +80,7 @@ namespace DeforeStopDesktop
             };
             panelIzq.Controls.Add(lblSub);
 
+            // Panel derecho (formulario)
             Panel panelDer = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -160,13 +168,23 @@ namespace DeforeStopDesktop
             };
             btnSalir.FlatAppearance.BorderSize = 2;
             btnSalir.FlatAppearance.BorderColor = Colores.Rojo;
-            btnSalir.MouseEnter += (s, e) => { btnSalir.BackColor = Colores.Rojo; btnSalir.ForeColor = Color.White; };
-            btnSalir.MouseLeave += (s, e) => { btnSalir.BackColor = Color.Transparent; btnSalir.ForeColor = Colores.Rojo; };
+            btnSalir.MouseEnter += (s, e) =>
+            {
+                btnSalir.BackColor = Colores.Rojo;
+                btnSalir.ForeColor = Color.White;
+            };
+            btnSalir.MouseLeave += (s, e) =>
+            {
+                btnSalir.BackColor = Color.Transparent;
+                btnSalir.ForeColor = Colores.Rojo;
+            };
             btnSalir.Click += (s, e) =>
             {
                 if (MessageBox.Show("¿Estás seguro que quieres salir?", "Confirmar",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
                     Application.Exit();
+                }
             };
             panelDer.Controls.Add(btnSalir);
 
@@ -223,27 +241,34 @@ namespace DeforeStopDesktop
 
             try
             {
-                using (var db = new AppDbContext())
+                var usuario = _controller.ValidarLogin(correo, contrasena);
+
+                if (usuario != null)
                 {
-                    var usuario = db.Usuarios.FirstOrDefault(u => u.Correo == correo && u.Contrasena == contrasena);
-                    if (usuario != null)
-                    {
-                        if (!usuario.Activo) { MostrarError("El usuario está desactivado."); return; }
-                        MainForm main = new MainForm(usuario);
-                        this.Hide();
-                        main.ShowDialog();
-                        this.Show();
-                    }
-                    else MostrarError("Correo o contraseña incorrectos.");
+                    MainForm main = new MainForm(usuario);
+                    this.Hide();
+                    main.ShowDialog();
+                    this.Show();
+                }
+                else
+                {
+                    MostrarError("Correo o contraseña incorrectos.");
                 }
             }
-            catch (Exception ex) { MostrarError("Error de conexión: " + ex.Message); }
+            catch (Exception ex)
+            {
+                MostrarError("Error de conexión: " + ex.Message);
+            }
         }
 
         private void MostrarError(string mensaje)
         {
             var lbl = this.Controls.Find("lblEstado", true).FirstOrDefault() as Label;
-            if (lbl != null) { lbl.Text = mensaje; lbl.ForeColor = Colores.Rojo; }
+            if (lbl != null)
+            {
+                lbl.Text = mensaje;
+                lbl.ForeColor = Colores.Rojo;
+            }
         }
     }
 }

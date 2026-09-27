@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop.Forms
@@ -11,6 +11,7 @@ namespace DeforeStopDesktop.Forms
     {
         private DataGridView? dgvZonas;
         private System.ComponentModel.IContainer? components = null;
+        private readonly ZonaController _controller = new ZonaController();
 
         public ZonasForm()
         {
@@ -153,16 +154,13 @@ namespace DeforeStopDesktop.Forms
         {
             try
             {
-                using (var db = new AppDbContext())
-                {
-                    var zonas = db.Zonas.OrderBy(z => z.Id).ToList();
-                    dgvZonas!.DataSource = zonas;
-                    dgvZonas.Columns["Id"]!.HeaderText = "ID";
-                    dgvZonas.Columns["Nombre"]!.HeaderText = "Nombre";
-                    dgvZonas.Columns["Departamento"]!.HeaderText = "Departamento";
-                    dgvZonas.Columns["Latitud"]!.HeaderText = "Latitud";
-                    dgvZonas.Columns["Longitud"]!.HeaderText = "Longitud";
-                }
+                var zonas = _controller.ObtenerTodas();
+                dgvZonas!.DataSource = zonas;
+                dgvZonas.Columns["Id"]!.HeaderText = "ID";
+                dgvZonas.Columns["Nombre"]!.HeaderText = "Nombre";
+                dgvZonas.Columns["Departamento"]!.HeaderText = "Departamento";
+                dgvZonas.Columns["Latitud"]!.HeaderText = "Latitud";
+                dgvZonas.Columns["Longitud"]!.HeaderText = "Longitud";
             }
             catch (Exception ex)
             {
@@ -190,11 +188,8 @@ namespace DeforeStopDesktop.Forms
             }
 
             int id = (int)dgvZonas.SelectedRows[0].Cells["Id"].Value;
-            using (var db = new AppDbContext())
-            {
-                var zona = db.Zonas.Find(id);
-                if (zona != null) AbrirEditor(zona);
-            }
+            var zona = _controller.ObtenerPorId(id);
+            if (zona != null) AbrirEditor(zona);
         }
 
         private void EliminarSeleccionada()
@@ -212,24 +207,15 @@ namespace DeforeStopDesktop.Forms
             if (MessageBox.Show($"¿Eliminar la zona \"{nombre}\"?", "Confirmar",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                try
+                if (_controller.Eliminar(id))
                 {
-                    using (var db = new AppDbContext())
-                    {
-                        var zona = db.Zonas.Find(id);
-                        if (zona != null)
-                        {
-                            db.Zonas.Remove(zona);
-                            db.SaveChanges();
-                        }
-                    }
                     CargarZonas();
                     MessageBox.Show("Zona eliminada correctamente.", "Éxito",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show("Error al eliminar: " + ex.Message, "Error",
+                    MessageBox.Show("Error al eliminar zona.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }

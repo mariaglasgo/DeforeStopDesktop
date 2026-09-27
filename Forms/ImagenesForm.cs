@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop.Forms
@@ -16,6 +17,7 @@ namespace DeforeStopDesktop.Forms
         private Label? lblSinPreview;
         private System.ComponentModel.IContainer? components = null;
         private static readonly HttpClient httpClient = new HttpClient();
+        private readonly ImagenSatelitalController _controller = new ImagenSatelitalController();
 
         public ImagenesForm()
         {
@@ -49,7 +51,6 @@ namespace DeforeStopDesktop.Forms
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Colores.FondoClaro;
 
-            // ===== NAVBAR =====
             Panel navbar = new Panel
             {
                 Dock = DockStyle.Top,
@@ -69,7 +70,6 @@ namespace DeforeStopDesktop.Forms
             navbar.Controls.Add(lblTitulo);
             this.Controls.Add(navbar);
 
-            // ===== BOTONES =====
             Panel panelBotones = new Panel
             {
                 Dock = DockStyle.Top,
@@ -125,7 +125,6 @@ namespace DeforeStopDesktop.Forms
 
             this.Controls.Add(panelBotones);
 
-            // ===== SPLIT: GRID + PREVIEW =====
             SplitContainer split = new SplitContainer
             {
                 Dock = DockStyle.Fill,
@@ -133,7 +132,6 @@ namespace DeforeStopDesktop.Forms
                 BackColor = Colores.FondoClaro
             };
 
-            // DataGridView
             dgvImagenes = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -161,7 +159,6 @@ namespace DeforeStopDesktop.Forms
 
             split.Panel1.Controls.Add(dgvImagenes);
 
-            // Panel de Preview
             Panel panelPreview = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -191,7 +188,6 @@ namespace DeforeStopDesktop.Forms
             panelPreview.Controls.Add(picPreview);
             picPreview.BringToFront();
 
-            // Tooltip
             ToolTip tooltip = new ToolTip();
             tooltip.SetToolTip(picPreview, "🖱️ Clic para ampliar la imagen");
 
@@ -217,20 +213,17 @@ namespace DeforeStopDesktop.Forms
         {
             try
             {
-                using (var db = new AppDbContext())
-                {
-                    var imagenes = db.ImagenesSatelitales.OrderBy(i => i.Id).ToList();
-                    dgvImagenes!.DataSource = imagenes;
-                    dgvImagenes.Columns["Id"]!.HeaderText = "ID";
-                    dgvImagenes.Columns["NombreArchivo"]!.HeaderText = "Nombre";
-                    dgvImagenes.Columns["FechaCaptura"]!.HeaderText = "Fecha Captura";
-                    dgvImagenes.Columns["ZonaId"]!.HeaderText = "Zona ID";
-                    dgvImagenes.Columns["UsuarioId"]!.HeaderText = "Usuario ID";
-                    if (dgvImagenes.Columns["RutaArchivo"] != null)
-                        dgvImagenes.Columns["RutaArchivo"]!.Visible = false;
-                    if (dgvImagenes.Columns["FechaSubida"] != null)
-                        dgvImagenes.Columns["FechaSubida"]!.Visible = false;
-                }
+                var imagenes = _controller.ObtenerTodas();
+                dgvImagenes!.DataSource = imagenes;
+                dgvImagenes.Columns["Id"]!.HeaderText = "ID";
+                dgvImagenes.Columns["NombreArchivo"]!.HeaderText = "Nombre";
+                dgvImagenes.Columns["FechaCaptura"]!.HeaderText = "Fecha Captura";
+                dgvImagenes.Columns["ZonaId"]!.HeaderText = "Zona ID";
+                dgvImagenes.Columns["UsuarioId"]!.HeaderText = "Usuario ID";
+                if (dgvImagenes.Columns["RutaArchivo"] != null)
+                    dgvImagenes.Columns["RutaArchivo"]!.Visible = false;
+                if (dgvImagenes.Columns["FechaSubida"] != null)
+                    dgvImagenes.Columns["FechaSubida"]!.Visible = false;
             }
             catch (Exception ex)
             {
@@ -330,7 +323,6 @@ namespace DeforeStopDesktop.Forms
                 return;
             }
 
-            // Crear ventana modal con la imagen en grande
             Form ventanaGrande = new Form
             {
                 Text = "Vista Previa - DeforeStop",
@@ -353,16 +345,13 @@ namespace DeforeStopDesktop.Forms
             };
             ventanaGrande.Controls.Add(picGrande);
 
-            // Cerrar con ESC
             ventanaGrande.KeyDown += (s, e) =>
             {
                 if (e.KeyCode == Keys.Escape) ventanaGrande.Close();
             };
 
-            // Cerrar con clic en la imagen
             picGrande.Click += (s, e) => ventanaGrande.Close();
 
-            // Botón cerrar
             Button btnCerrar = new Button
             {
                 Text = "✕  Cerrar (ESC)",
@@ -403,11 +392,8 @@ namespace DeforeStopDesktop.Forms
             }
 
             int id = (int)dgvImagenes.SelectedRows[0].Cells["Id"].Value;
-            using (var db = new AppDbContext())
-            {
-                var imagen = db.ImagenesSatelitales.Find(id);
-                if (imagen != null) AbrirEditor(imagen);
-            }
+            var imagen = _controller.ObtenerPorId(id);
+            if (imagen != null) AbrirEditor(imagen);
         }
 
         private void EliminarSeleccionada()
@@ -425,32 +411,15 @@ namespace DeforeStopDesktop.Forms
             if (MessageBox.Show($"¿Eliminar la imagen \"{nombre}\"?", "Confirmar",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                try
+                if (_controller.Eliminar(id))
                 {
-                    using (var db = new AppDbContext())
-                    {
-                        var imagen = db.ImagenesSatelitales.Find(id);
-                        if (imagen != null)
-                        {
-                            // Borrar archivo físico si existe
-                            if (!string.IsNullOrEmpty(imagen.RutaArchivo) &&
-                                !imagen.RutaArchivo.StartsWith("http") &&
-                                File.Exists(imagen.RutaArchivo))
-                            {
-                                try { File.Delete(imagen.RutaArchivo); } catch { }
-                            }
-
-                            db.ImagenesSatelitales.Remove(imagen);
-                            db.SaveChanges();
-                        }
-                    }
                     CargarImagenes();
                     MessageBox.Show("Imagen eliminada correctamente.", "Éxito",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show("Error al eliminar: " + ex.Message, "Error",
+                    MessageBox.Show("Error al eliminar imagen.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }

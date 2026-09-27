@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop.Forms
@@ -10,6 +11,8 @@ namespace DeforeStopDesktop.Forms
     {
         private Usuario? _usuario;
         private bool _esNuevo;
+        private readonly UsuarioController _controller = new UsuarioController();
+        private System.ComponentModel.IContainer? components = null;
 
         public UsuarioEditForm(Usuario? usuario)
         {
@@ -27,8 +30,6 @@ namespace DeforeStopDesktop.Forms
             this.Name = "UsuarioEditForm";
             this.Text = "Usuario";
         }
-
-        private System.ComponentModel.IContainer? components = null;
 
         protected override void Dispose(bool disposing)
         {
@@ -59,6 +60,7 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(lblTitulo);
 
+            // Nombre
             Label lblNombre = new Label
             {
                 Text = "Nombre completo:",
@@ -78,6 +80,7 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(txtNombre);
 
+            // Correo
             Label lblCorreo = new Label
             {
                 Text = "Correo electrónico:",
@@ -97,6 +100,7 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(txtCorreo);
 
+            // Contraseña
             Label lblPass = new Label
             {
                 Text = "Contraseña:",
@@ -117,6 +121,7 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(txtPass);
 
+            // Rol
             Label lblRol = new Label
             {
                 Text = "Rol:",
@@ -138,6 +143,7 @@ namespace DeforeStopDesktop.Forms
             cmbRol.SelectedItem = _usuario?.Rol ?? "Observador";
             this.Controls.Add(cmbRol);
 
+            // Activo
             CheckBox chkActivo = new CheckBox
             {
                 Text = "Usuario activo",
@@ -149,6 +155,7 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(chkActivo);
 
+            // Botón Guardar
             Button btnGuardar = new Button
             {
                 Text = "💾 GUARDAR",
@@ -174,38 +181,40 @@ namespace DeforeStopDesktop.Forms
 
                 try
                 {
-                    using (var db = new AppDbContext())
+                    bool resultado;
+
+                    if (_esNuevo)
                     {
-                        if (_esNuevo)
+                        var nuevo = new Usuario
                         {
-                            var nuevo = new Usuario
-                            {
-                                Nombre = txtNombre.Text,
-                                Correo = txtCorreo.Text,
-                                Contrasena = txtPass.Text,
-                                Rol = cmbRol.SelectedItem?.ToString() ?? "Observador",
-                                Activo = chkActivo.Checked,
-                                FechaCreacion = DateTime.Now
-                            };
-                            db.Usuarios.Add(nuevo);
-                        }
-                        else
-                        {
-                            var u = db.Usuarios.Find(_usuario!.Id);
-                            if (u != null)
-                            {
-                                u.Nombre = txtNombre.Text;
-                                u.Correo = txtCorreo.Text;
-                                u.Contrasena = txtPass.Text;
-                                u.Rol = cmbRol.SelectedItem?.ToString() ?? "Observador";
-                                u.Activo = chkActivo.Checked;
-                            }
-                        }
-                        db.SaveChanges();
+                            Nombre = txtNombre.Text,
+                            Correo = txtCorreo.Text,
+                            Contrasena = txtPass.Text,
+                            Rol = cmbRol.SelectedItem?.ToString() ?? "Observador",
+                            Activo = chkActivo.Checked
+                        };
+                        resultado = _controller.Crear(nuevo);
+                    }
+                    else
+                    {
+                        _usuario!.Nombre = txtNombre.Text;
+                        _usuario.Correo = txtCorreo.Text;
+                        _usuario.Contrasena = txtPass.Text;
+                        _usuario.Rol = cmbRol.SelectedItem?.ToString() ?? "Observador";
+                        _usuario.Activo = chkActivo.Checked;
+                        resultado = _controller.Actualizar(_usuario);
                     }
 
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    if (resultado)
+                    {
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Error al guardar el usuario.", "Error",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -215,6 +224,7 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(btnGuardar);
 
+            // Botón Cancelar
             Button btnCancelar = new Button
             {
                 Text = "❌ CANCELAR",

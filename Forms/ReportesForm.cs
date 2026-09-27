@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop.Forms
@@ -11,6 +11,7 @@ namespace DeforeStopDesktop.Forms
     {
         private DataGridView? dgvReportes;
         private System.ComponentModel.IContainer? components = null;
+        private readonly ReporteController _controller = new ReporteController();
 
         public ReportesForm()
         {
@@ -153,18 +154,15 @@ namespace DeforeStopDesktop.Forms
         {
             try
             {
-                using (var db = new AppDbContext())
-                {
-                    var reportes = db.Reportes.OrderBy(r => r.Id).ToList();
-                    dgvReportes!.DataSource = reportes;
-                    dgvReportes.Columns["Id"]!.HeaderText = "ID";
-                    dgvReportes.Columns["Titulo"]!.HeaderText = "Título";
-                    dgvReportes.Columns["FechaInicio"]!.HeaderText = "Fecha Inicio";
-                    dgvReportes.Columns["FechaFin"]!.HeaderText = "Fecha Fin";
-                    dgvReportes.Columns["ZonaId"]!.HeaderText = "Zona ID";
-                    dgvReportes.Columns["UsuarioId"]!.HeaderText = "Usuario ID";
-                    dgvReportes.Columns["FechaGeneracion"]!.HeaderText = "Fecha Generación";
-                }
+                var reportes = _controller.ObtenerTodos();
+                dgvReportes!.DataSource = reportes;
+                dgvReportes.Columns["Id"]!.HeaderText = "ID";
+                dgvReportes.Columns["Titulo"]!.HeaderText = "Título";
+                dgvReportes.Columns["FechaInicio"]!.HeaderText = "Fecha Inicio";
+                dgvReportes.Columns["FechaFin"]!.HeaderText = "Fecha Fin";
+                dgvReportes.Columns["ZonaId"]!.HeaderText = "Zona ID";
+                dgvReportes.Columns["UsuarioId"]!.HeaderText = "Usuario ID";
+                dgvReportes.Columns["FechaGeneracion"]!.HeaderText = "Fecha Generación";
             }
             catch (Exception ex)
             {
@@ -192,11 +190,8 @@ namespace DeforeStopDesktop.Forms
             }
 
             int id = (int)dgvReportes.SelectedRows[0].Cells["Id"].Value;
-            using (var db = new AppDbContext())
-            {
-                var reporte = db.Reportes.Find(id);
-                if (reporte != null) AbrirEditor(reporte);
-            }
+            var reporte = _controller.ObtenerPorId(id);
+            if (reporte != null) AbrirEditor(reporte);
         }
 
         private void EliminarSeleccionado()
@@ -214,24 +209,15 @@ namespace DeforeStopDesktop.Forms
             if (MessageBox.Show($"¿Eliminar el reporte \"{titulo}\"?", "Confirmar",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
-                try
+                if (_controller.Eliminar(id))
                 {
-                    using (var db = new AppDbContext())
-                    {
-                        var reporte = db.Reportes.Find(id);
-                        if (reporte != null)
-                        {
-                            db.Reportes.Remove(reporte);
-                            db.SaveChanges();
-                        }
-                    }
                     CargarReportes();
                     MessageBox.Show("Reporte eliminado correctamente.", "Éxito",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
-                catch (Exception ex)
+                else
                 {
-                    MessageBox.Show("Error al eliminar: " + ex.Message, "Error",
+                    MessageBox.Show("Error al eliminar reporte.", "Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }

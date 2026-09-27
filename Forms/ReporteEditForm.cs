@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using DeforeStopDesktop.Config;
+using DeforeStopDesktop.Controllers;
 using DeforeStopDesktop.Models;
 
 namespace DeforeStopDesktop.Forms
@@ -11,6 +12,9 @@ namespace DeforeStopDesktop.Forms
     {
         private Reporte? _reporte;
         private bool _esNuevo;
+        private readonly ReporteController _controller = new ReporteController();
+        private readonly ZonaController _zonaController = new ZonaController();
+        private readonly UsuarioController _usuarioController = new UsuarioController();
         private System.ComponentModel.IContainer? components = null;
 
         public ReporteEditForm(Reporte? reporte)
@@ -121,7 +125,7 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(dtpFF);
 
-            // Zona (ComboBox dinámico)
+            // Zona
             Label lblZona = new Label
             {
                 Text = "Zona:",
@@ -141,7 +145,7 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(cmbZona);
 
-            // Usuario (ComboBox dinámico)
+            // Usuario
             Label lblUsuario = new Label
             {
                 Text = "Usuario:",
@@ -161,15 +165,15 @@ namespace DeforeStopDesktop.Forms
             };
             this.Controls.Add(cmbUsuario);
 
-            // Cargar datos de los ComboBox
-            using (var db = new AppDbContext())
+            // Cargar ComboBox usando Controllers
+            try
             {
-                var zonas = db.Zonas.ToList();
+                var zonas = _zonaController.ObtenerTodas();
                 cmbZona.DataSource = zonas;
                 cmbZona.DisplayMember = "Nombre";
                 cmbZona.ValueMember = "Id";
 
-                var usuarios = db.Usuarios.ToList();
+                var usuarios = _usuarioController.ObtenerTodos();
                 cmbUsuario.DataSource = usuarios;
                 cmbUsuario.DisplayMember = "Nombre";
                 cmbUsuario.ValueMember = "Id";
@@ -179,6 +183,11 @@ namespace DeforeStopDesktop.Forms
                     cmbZona.SelectedValue = _reporte.ZonaId;
                     cmbUsuario.SelectedValue = _reporte.UsuarioId;
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al cargar datos: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             // Botón Guardar
@@ -207,38 +216,40 @@ namespace DeforeStopDesktop.Forms
 
                 try
                 {
-                    using (var db = new AppDbContext())
+                    bool resultado;
+
+                    if (_esNuevo)
                     {
-                        if (_esNuevo)
+                        var nuevo = new Reporte
                         {
-                            var nuevo = new Reporte
-                            {
-                                Titulo = txtTitulo.Text,
-                                FechaInicio = dtpFI.Value,
-                                FechaFin = dtpFF.Value,
-                                ZonaId = (int)cmbZona.SelectedValue,
-                                UsuarioId = (int)cmbUsuario.SelectedValue,
-                                FechaGeneracion = DateTime.Now
-                            };
-                            db.Reportes.Add(nuevo);
-                        }
-                        else
-                        {
-                            var r = db.Reportes.Find(_reporte!.Id);
-                            if (r != null)
-                            {
-                                r.Titulo = txtTitulo.Text;
-                                r.FechaInicio = dtpFI.Value;
-                                r.FechaFin = dtpFF.Value;
-                                r.ZonaId = (int)cmbZona.SelectedValue;
-                                r.UsuarioId = (int)cmbUsuario.SelectedValue;
-                            }
-                        }
-                        db.SaveChanges();
+                            Titulo = txtTitulo.Text,
+                            FechaInicio = dtpFI.Value,
+                            FechaFin = dtpFF.Value,
+                            ZonaId = (int)cmbZona.SelectedValue!,
+                            UsuarioId = (int)cmbUsuario.SelectedValue!
+                        };
+                        resultado = _controller.Crear(nuevo);
+                    }
+                    else
+                    {
+                        _reporte!.Titulo = txtTitulo.Text;
+                        _reporte.FechaInicio = dtpFI.Value;
+                        _reporte.FechaFin = dtpFF.Value;
+                        _reporte.ZonaId = (int)cmbZona.SelectedValue!;
+                        _reporte.UsuarioId = (int)cmbUsuario.SelectedValue!;
+                        resultado = _controller.Actualizar(_reporte);
                     }
 
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    if (resultado)
+                    {
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Error al guardar el reporte.", "Error",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
                 }
                 catch (Exception ex)
                 {
