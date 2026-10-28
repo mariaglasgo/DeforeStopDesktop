@@ -18,13 +18,18 @@ namespace DeforeStopDesktop
             ConstruirUI();
         }
 
+       
+        
+
         private void ConstruirUI()
         {
             this.Text = "DeforeStop - Panel Principal";
             this.Size = new Size(1200, 700);
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor = Colores.FondoClaro;
+            this.MinimumSize = new Size(1000, 600);
 
+            // ============ NAVBAR ============
             Panel navbar = new Panel
             {
                 Dock = DockStyle.Top,
@@ -38,6 +43,7 @@ namespace DeforeStopDesktop
                     e.Graphics.FillRectangle(brush, navbar.ClientRectangle);
             };
 
+            // Logo
             PictureBox picLogo = new PictureBox
             {
                 Image = Image.FromFile("pajaro.png"),
@@ -48,6 +54,7 @@ namespace DeforeStopDesktop
             };
             navbar.Controls.Add(picLogo);
 
+            // Título
             Label lblTitulo = new Label
             {
                 Text = "DeforeStop",
@@ -59,6 +66,7 @@ namespace DeforeStopDesktop
             };
             navbar.Controls.Add(lblTitulo);
 
+            // Bienvenida usuario
             Label lblUsuario = new Label
             {
                 Text = $"👤 {_usuarioActual.Nombre} ({_usuarioActual.Rol})",
@@ -71,6 +79,7 @@ namespace DeforeStopDesktop
             };
             navbar.Controls.Add(lblUsuario);
 
+            // Botón cerrar sesión
             Button btnCerrarSesion = new Button
             {
                 Text = "Cerrar Sesión",
@@ -84,11 +93,19 @@ namespace DeforeStopDesktop
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             btnCerrarSesion.FlatAppearance.BorderSize = 0;
-            btnCerrarSesion.Click += (s, e) => this.Close();
+            btnCerrarSesion.Click += (s, e) =>
+            {
+                if (MessageBox.Show("¿Cerrar sesión?", "Confirmar",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    this.Close();
+                }
+            };
             navbar.Controls.Add(btnCerrarSesion);
 
             this.Controls.Add(navbar);
 
+            // ============ PANEL CENTRAL ============
             Panel panelCentral = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -96,13 +113,15 @@ namespace DeforeStopDesktop
                 Padding = new Padding(30)
             };
 
+            // Bienvenida
             Label lblBienvenida = new Label
             {
                 Text = $"¡Bienvenido, {_usuarioActual.Nombre}!",
                 Font = new Font("Segoe UI", 26, FontStyle.Bold),
                 ForeColor = Colores.VerdeOscuro,
                 AutoSize = true,
-                Location = new Point(30, 30)
+                Location = new Point(30, 20),
+                BackColor = Color.Transparent
             };
             panelCentral.Controls.Add(lblBienvenida);
 
@@ -112,35 +131,67 @@ namespace DeforeStopDesktop
                 Font = new Font("Segoe UI", 12, FontStyle.Regular),
                 ForeColor = Colores.TextoOscuro,
                 AutoSize = true,
-                Location = new Point(30, 80)
+                Location = new Point(30, 65),
+                BackColor = Color.Transparent
             };
             panelCentral.Controls.Add(lblSub);
 
-            int x = 30, y = 150, cardWidth = 250, cardHeight = 180, espacio = 25;
+            // ============ CONFIGURACIÓN DE TARJETAS ============
+            int cardWidth = 250;
+            int cardHeight = 150;
+            int espacio = 25;
 
-            CrearTarjeta(panelCentral, "👥 Usuarios", "Gestionar usuarios del sistema", x, y, cardWidth, cardHeight, () => {
-                DeforeStopDesktop.Forms.UsuariosForm form = new DeforeStopDesktop.Forms.UsuariosForm();
-                form.ShowDialog();
-            });
-            x += cardWidth + espacio;
-            CrearTarjeta(panelCentral, "🌍 Zonas", "Reservas y áreas forestales", x, y, cardWidth, cardHeight, () => {
-                DeforeStopDesktop.Forms.ZonasForm form = new DeforeStopDesktop.Forms.ZonasForm();
-                form.ShowDialog();
-            });
-            x += cardWidth + espacio;
-            CrearTarjeta(panelCentral, "📊 Reportes", "Generar y consultar reportes", x, y, cardWidth, cardHeight, () => {
-                DeforeStopDesktop.Forms.ReportesForm form = new DeforeStopDesktop.Forms.ReportesForm();
-                form.ShowDialog();
-            });
-            x += cardWidth + espacio;
-            CrearTarjeta(panelCentral, "🛰️ Imágenes", "Imágenes satelitales registradas", x, y, cardWidth, cardHeight, () => {
-                DeforeStopDesktop.Forms.ImagenesForm form = new DeforeStopDesktop.Forms.ImagenesForm();
-                form.ShowDialog();
-            });
+            // Calcular posición inicial para centrar (3 columnas)
+            int anchoFila = (cardWidth * 3) + (espacio * 2);
+            int xInicial = (this.ClientSize.Width - anchoFila) / 2;
+            if (xInicial < 30) xInicial = 30;
+
+            // ============ PRIMERA FILA (3 tarjetas) ============
+            int y1 = 140;
+
+            // 1. Usuarios
+            CrearTarjeta(panelCentral, "👥 Usuarios", "Gestionar usuarios del sistema",
+                xInicial, y1, cardWidth, cardHeight, () => {
+                    new DeforeStopDesktop.Forms.UsuariosForm().ShowDialog();
+                });
+
+            // 2. Zonas
+            CrearTarjeta(panelCentral, "🌍 Zonas", "Reservas y áreas forestales",
+                xInicial + cardWidth + espacio, y1, cardWidth, cardHeight, () => {
+                    new DeforeStopDesktop.Forms.ZonasForm().ShowDialog();
+                });
+
+            // 3. Reportes
+            CrearTarjeta(panelCentral, "📊 Reportes", "Generar y consultar reportes",
+                xInicial + (cardWidth + espacio) * 2, y1, cardWidth, cardHeight, () => {
+                    new DeforeStopDesktop.Forms.ReportesForm().ShowDialog();
+                });
+
+            // ============ SEGUNDA FILA (3 tarjetas) ============
+            int y2 = y1 + cardHeight + espacio;
+
+            // 4. Imágenes
+            CrearTarjeta(panelCentral, "🛰️ Imágenes", "Imágenes satelitales registradas",
+                xInicial, y2, cardWidth, cardHeight, () => {
+                    new DeforeStopDesktop.Forms.ImagenesForm().ShowDialog();
+                });
+
+            // 5. Alertas
+            CrearTarjeta(panelCentral, "🚨 Alertas", "Alertas de deforestación",
+                xInicial + cardWidth + espacio, y2, cardWidth, cardHeight, () => {
+                    new DeforeStopDesktop.Forms.AlertasForm().ShowDialog();
+                });
+
+            // 6. Denuncias (Zonas Deforestadas)
+            CrearTarjeta(panelCentral, "📢 Denuncias", "Registro de hectáreas afectadas",
+                xInicial + (cardWidth + espacio) * 2, y2, cardWidth, cardHeight, () => {
+                    new DeforeStopDesktop.Forms.ZonasDeforestadasForm().ShowDialog();
+                });
 
             this.Controls.Add(panelCentral);
             panelCentral.BringToFront();
 
+            // ============ FOOTER ============
             Panel footer = new Panel
             {
                 Dock = DockStyle.Bottom,
@@ -169,12 +220,18 @@ namespace DeforeStopDesktop
                 BackColor = Color.White,
                 Cursor = Cursors.Hand
             };
+
+            // Borde verde
             card.Paint += (s, e) =>
             {
-                e.Graphics.DrawRectangle(new Pen(Colores.VerdeNeon, 3),
-                    new Rectangle(0, 0, card.Width - 1, card.Height - 1));
+                using (var pen = new Pen(Colores.VerdeNeon, 3))
+                {
+                    e.Graphics.DrawRectangle(pen,
+                        new Rectangle(0, 0, card.Width - 1, card.Height - 1));
+                }
             };
 
+            // Ícono + Título
             Label lblTitulo = new Label
             {
                 Text = titulo,
@@ -183,10 +240,12 @@ namespace DeforeStopDesktop
                 AutoSize = false,
                 Size = new Size(ancho, 40),
                 Location = new Point(0, 30),
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
             };
             card.Controls.Add(lblTitulo);
 
+            // Descripción
             Label lblDesc = new Label
             {
                 Text = descripcion,
@@ -195,17 +254,44 @@ namespace DeforeStopDesktop
                 AutoSize = false,
                 Size = new Size(ancho - 20, 60),
                 Location = new Point(10, 80),
-                TextAlign = ContentAlignment.MiddleCenter
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
             };
             card.Controls.Add(lblDesc);
 
+            // Eventos de clic
             card.Click += (s, e) => onClick();
             lblTitulo.Click += (s, e) => onClick();
             lblDesc.Click += (s, e) => onClick();
-            card.MouseEnter += (s, e) => card.BackColor = Color.FromArgb(240, 255, 240);
-            card.MouseLeave += (s, e) => card.BackColor = Color.White;
+
+            // Efecto hover
+            card.MouseEnter += (s, e) =>
+            {
+                card.BackColor = Color.FromArgb(240, 255, 240);
+                card.Paint += PaintHover;
+                card.Invalidate();
+            };
+            card.MouseLeave += (s, e) =>
+            {
+                card.BackColor = Color.White;
+                card.Paint -= PaintHover;
+                card.Invalidate();
+            };
 
             parent.Controls.Add(card);
+            card.BringToFront();
+        }
+
+        private void PaintHover(object? sender, PaintEventArgs e)
+        {
+            if (sender is Panel card)
+            {
+                using (var pen = new Pen(Colores.VerdeClaro, 4))
+                {
+                    e.Graphics.DrawRectangle(pen,
+                        new Rectangle(0, 0, card.Width - 1, card.Height - 1));
+                }
+            }
         }
     }
 }
